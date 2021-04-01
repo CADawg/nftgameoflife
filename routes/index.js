@@ -17,6 +17,8 @@ const handler = async function(req, res, ignored) {
 
   if (req.get("User-Agent").includes("Discordbot") && empty(req.params.force)) {
     res.render("image", {nftId});
+    res.end();
+    return;
   }
 
   try {

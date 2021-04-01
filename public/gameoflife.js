@@ -44,16 +44,15 @@ async function sha512(str) {
         try {
             if (parseInt(USP.get("id")).toString() === USP.get("id")) {
                 GAME_ID = USP.get("id");
-                document.getElementById("describe").innerText = "ID: #" + GAME_ID;
             } else {
                 alert("Invalid NFT ID - A NFT ID is numeric only. Showing NFT #1");
-                document.getElementById("describe").innerText = "ID: #1";
             }
         } catch (ignoredError) {
             alert("Invalid NFT ID - A NFT ID is numeric only. Showing NFT #1");
-            document.getElementById("describe").innerText = "ID: #1";
         }
     }
+
+    document.getElementById("describe").innerHTML = `ID: #${GAME_ID} <a href='/image/${GAME_ID}.gif'>View as GIF</a>`;
 
 const GAME_HASH = await sha512(GAME_ID);
 

@@ -6,8 +6,10 @@ const CanvasGifEncoder = require('gif-encoder-2');
 const {createCanvas} = require('canvas');
 const crypto = require("crypto");
 
-router.get('/nft/image/:id', async function(req, res, next) {
+router.get('/image/:id', async function(req, res, ignored) {
   let nftId = req.params.id;
+
+  nftId = nftId.replace(".gif","");
 
   try {
     if (parseInt(nftId).toString() !== nftId) {
@@ -108,14 +110,13 @@ router.get('/nft/image/:id', async function(req, res, next) {
           encoder.finish();
           const buffer = encoder.out.getData();
           res.end(buffer);
-          fs.writeFile(path.join(__dirname, "..", "images", nftId + ".gif"), buffer, (err => {}));
+          fs.writeFile(path.join(__dirname, "..", "images", nftId + ".gif"), buffer, (ignored => {}));
         } else {
           draw_game(myGrid);
           encoder.addFrame(context);
           let lastGrid = JSON.stringify(myGrid);
           myGrid = update_grid(myGrid);
           if (JSON.stringify(myGrid) === lastGrid) {
-            console.log("same");
             sameInARow++;
           }
           frameCounter++;

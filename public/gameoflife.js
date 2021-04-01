@@ -64,7 +64,7 @@ console.log(GAME_BINARY);
 // VISUAL SETTINGS
 const GRID_SIZE = 22;
 const PIXEL_SIZE = 22;
-const GAME_FPS = 10;
+let GAME_FPS = 5;
 
 // GAMEPLAY SETTINGS
 const GAME_MAX_NEIGHBORS = 3;
@@ -83,10 +83,48 @@ canvas.height = CANVAS_SIZE;
 
 let grids = await grid_from_binary(GRID_SIZE, GAME_BINARY);
 
+const INITIAL_GRID = JSON.parse(JSON.stringify(grids[0]));
 let myGrid = grids[0];
 let colorGrid = grids[1];
 
-setInterval(render,1000/GAME_FPS);
+let interval = setInterval(render,1000/GAME_FPS);
+
+// browsers b like
+document.getElementById("fps").value = "5";
+
+document.getElementById("fps").addEventListener("input", function (event) {
+    event.preventDefault(); event.stopPropagation();
+
+    document.getElementById("fps_text").innerText = event.target.value;
+    GAME_FPS = event.target.value;
+
+    if (document.getElementById("pause").innerText === "Pause") {
+        clearInterval(interval);
+        interval = setInterval(render, 1000 / GAME_FPS);
+    }
+});
+
+document.getElementById("pause").addEventListener("click", function (event) {
+    event.preventDefault(); event.stopPropagation();
+
+    if (event.target.innerText === "Pause") {
+        clearInterval(interval);
+        event.target.innerText = "Play";
+    } else {
+        clearInterval(interval);
+        interval = setInterval(render,1000/GAME_FPS);
+        event.target.innerText = "Pause";
+    }
+});
+
+document.getElementById("reset").addEventListener("click", function (event) {
+    event.preventDefault(); event.stopPropagation();
+
+    myGrid = INITIAL_GRID;
+    if (document.getElementById("pause").innerText === "Play") {
+        render();
+    }
+    });
 
 context.fillStyle = "rgba(255,255,255,1)";
 context.fillRect( 0, 0, CANVAS_SIZE, CANVAS_SIZE);

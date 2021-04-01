@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 
   <head>
     <title>The NFT Game Of Life</title>
@@ -12,12 +12,19 @@
 
     <div class="flex-grow flexbox flexbox-center-all">
       <canvas id="game" width="500" height="500"></canvas>
+      <div>
+        <button id="pause">Pause</button>
+        <button id="reset">Reset</button>
+        <label for="fps">Frames/Sec:</label>
+        <input style="margin-bottom: -5px;" type="range" min="1" max="100" value="5" id="fps">
+        <span id="fps_text">5</span>
+      </div>
       <p id="describe"></p>
     </div>
 
     <div class="flex-grow flexbox flexbox-center-all">
       <form method="get" action="">
-        <input name="id" placeholder="NFT ID" />
+        <input name="id" placeholder="NFT ID" aria-label="NFT ID" />
         <input type="submit" value="View">
       </form>
     </div>

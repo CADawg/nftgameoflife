@@ -6,10 +6,18 @@ const CanvasGifEncoder = require('gif-encoder-2');
 const {createCanvas} = require('canvas');
 const crypto = require("crypto");
 
-router.get('/image/:id', async function(req, res, ignored) {
+const empty = function(thing) {
+  return (thing === undefined || thing === null || thing === "");
+}
+
+const handler = async function(req, res, ignored) {
   let nftId = req.params.id;
 
   nftId = nftId.replace(".gif","");
+
+  if (req.get("User-Agent").includes("Discordbot") && empty(req.params.force)) {
+    res.render("image", {nftId});
+  }
 
   try {
     if (parseInt(nftId).toString() !== nftId) {
@@ -69,151 +77,154 @@ router.get('/image/:id', async function(req, res, ignored) {
       return crypto.createHash('sha512').update(str).digest('hex');
     }
 
-      let GAME_ID = nftId;
+    let GAME_ID = nftId;
 
-      const GAME_HASH = await sha512(GAME_ID);
+    const GAME_HASH = await sha512(GAME_ID);
 
-      let GAME_BINARY = hex2bin(GAME_HASH.toString(), 16);
+    let GAME_BINARY = hex2bin(GAME_HASH.toString(), 16);
 
 
 
 // VISUAL SETTINGS
-      const GRID_SIZE = 22;
-      const PIXEL_SIZE = 22;
-      const GAME_FPS = 100;
+    const GRID_SIZE = 22;
+    const PIXEL_SIZE = 22;
+    const GAME_FPS = 100;
 
 // GAMEPLAY SETTINGS
-      const GAME_MAX_NEIGHBORS = 3;
-      const GAME_MIN_NEIGHBORS = 2;
-      const GAME_SPAWN_NEIGHBORS = 3;
+    const GAME_MAX_NEIGHBORS = 3;
+    const GAME_MIN_NEIGHBORS = 2;
+    const GAME_SPAWN_NEIGHBORS = 3;
 
-      const COLOR_CAP = 200;
+    const COLOR_CAP = 200;
 
-      const CANVAS_SIZE = GRID_SIZE * PIXEL_SIZE;
+    const CANVAS_SIZE = GRID_SIZE * PIXEL_SIZE;
 
 
-      let grids = await grid_from_binary(GRID_SIZE, GAME_BINARY);
+    let grids = await grid_from_binary(GRID_SIZE, GAME_BINARY);
 
-      let myGrid = grids[0];
-      let colorGrid = grids[1];
+    let myGrid = grids[0];
+    let colorGrid = grids[1];
 
-      let si = setInterval(render,1000/GAME_FPS);
+    let si = setInterval(render,1000/GAME_FPS);
 
-      context.fillStyle = "rgba(255,255,255,1)";
-      context.fillRect( 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    context.fillStyle = "rgba(255,255,255,1)";
+    context.fillRect( 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-      let frameCounter = 0;
+    let frameCounter = 0;
 
-      function render() {
-        if (frameCounter > 50 || sameInARow > 6) {
-          clearInterval(si);
-          encoder.finish();
-          const buffer = encoder.out.getData();
-          res.end(buffer);
-          fs.writeFile(path.join(__dirname, "..", "images", nftId + ".gif"), buffer, (ignored => {}));
-        } else {
-          draw_game(myGrid);
-          encoder.addFrame(context);
-          let lastGrid = JSON.stringify(myGrid);
-          myGrid = update_grid(myGrid);
-          if (JSON.stringify(myGrid) === lastGrid) {
-            sameInARow++;
-          }
-          frameCounter++;
+    function render() {
+      if (frameCounter > 50 || sameInARow > 6) {
+        clearInterval(si);
+        encoder.finish();
+        const buffer = encoder.out.getData();
+        res.end(buffer);
+        fs.writeFile(path.join(__dirname, "..", "images", nftId + ".gif"), buffer, (ignored => {}));
+      } else {
+        draw_game(myGrid);
+        encoder.addFrame(context);
+        let lastGrid = JSON.stringify(myGrid);
+        myGrid = update_grid(myGrid);
+        if (JSON.stringify(myGrid) === lastGrid) {
+          sameInARow++;
+        }
+        frameCounter++;
+      }
+    }
+
+    function draw_game(grid) {
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          set_pixel(grid[y][x], x, y);
+        }
+      }
+    }
+
+    async function grid_from_binary(grid_size, binary) {
+      let grid = [];
+      let colorGrid = [];
+      let counter = 0;
+      for (let y = 0; y < grid_size; y++) {
+        grid.push([]);
+        colorGrid.push([]);
+        for (let x = 0; x < grid_size; x++) {
+          counter = counter % binary.length;
+
+          grid[y].push(binary[counter] === "1");
+          let color = await sha512("".concat(x.toString(), ",", y.toString(), "-", GAME_ID));
+          let r = parseInt(color.substr(0,2), 16) % COLOR_CAP;
+          let g = parseInt(color.substr(2,2), 16) % COLOR_CAP;
+          let b = parseInt(color.substr(4,2), 16) % COLOR_CAP;
+          colorGrid[y].push({r, g, b});
+          counter++;
         }
       }
 
-      function draw_game(grid) {
-        for (let y = 0; y < grid.length; y++) {
-          for (let x = 0; x < grid[y].length; x++) {
-            set_pixel(grid[y][x], x, y);
-          }
-        }
-      }
-
-      async function grid_from_binary(grid_size, binary) {
-        let grid = [];
-        let colorGrid = [];
-        let counter = 0;
-        for (let y = 0; y < grid_size; y++) {
-          grid.push([]);
-          colorGrid.push([]);
-          for (let x = 0; x < grid_size; x++) {
-            counter = counter % binary.length;
-
-            grid[y].push(binary[counter] === "1");
-            let color = await sha512("".concat(x.toString(), ",", y.toString(), "-", GAME_ID));
-            let r = parseInt(color.substr(0,2), 16) % COLOR_CAP;
-            let g = parseInt(color.substr(2,2), 16) % COLOR_CAP;
-            let b = parseInt(color.substr(4,2), 16) % COLOR_CAP;
-            colorGrid[y].push({r, g, b});
-            counter++;
-          }
-        }
-
-        return [grid, colorGrid];
-      }
+      return [grid, colorGrid];
+    }
 
 // Sets "pixels" on the canvas
-      function set_pixel(value, x, y) {
-        let r = 255;
-        let g = 255;
-        let b = 255;
+    function set_pixel(value, x, y) {
+      let r = 255;
+      let g = 255;
+      let b = 255;
 
-        if (value) {
-          r = colorGrid[y][x].r;
-          g = colorGrid[y][x].g;
-          b = colorGrid[y][x].b;
-        }
-
-        let a = 1;
-        context.fillStyle = "rgba("+r+","+g+","+b+","+a+")";
-        context.fillRect( x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE - 1, PIXEL_SIZE - 1);
+      if (value) {
+        r = colorGrid[y][x].r;
+        g = colorGrid[y][x].g;
+        b = colorGrid[y][x].b;
       }
 
-      function block_is_alive(grid, x, y) {
-        if (x < 0 || x >= GRID_SIZE) return false;
-        if (y < 0 || y >= GRID_SIZE) return false;
+      let a = 1;
+      context.fillStyle = "rgba("+r+","+g+","+b+","+a+")";
+      context.fillRect( x * PIXEL_SIZE, y * PIXEL_SIZE, PIXEL_SIZE - 1, PIXEL_SIZE - 1);
+    }
 
-        return (grid[y][x] || false);
-      }
+    function block_is_alive(grid, x, y) {
+      if (x < 0 || x >= GRID_SIZE) return false;
+      if (y < 0 || y >= GRID_SIZE) return false;
 
-      function live_neighbors(grid, x,y) {
-        let lives = 0;
-        for (let yc = y - 1; yc <= y + 1; yc++) {
-          for (let xc = x - 1; xc <= x + 1; xc++) {
-            if (yc === 0 && xc === 0) continue;
-            if (block_is_alive(grid, xc, yc)) {
-              lives += 1;
-            }
+      return (grid[y][x] || false);
+    }
+
+    function live_neighbors(grid, x,y) {
+      let lives = 0;
+      for (let yc = y - 1; yc <= y + 1; yc++) {
+        for (let xc = x - 1; xc <= x + 1; xc++) {
+          if (yc === 0 && xc === 0) continue;
+          if (block_is_alive(grid, xc, yc)) {
+            lives += 1;
           }
         }
-        return lives;
       }
+      return lives;
+    }
 
-      function update_grid(grid){
-        let new_grid = [];
-        let liveNeighbours = 0;
-        for (let yc = 0; yc < GRID_SIZE; yc++){
-          new_grid[yc] = [];
-          for (let xc = 0; xc < GRID_SIZE; xc++){
-            liveNeighbours = live_neighbors(grid, xc, yc);
+    function update_grid(grid){
+      let new_grid = [];
+      let liveNeighbours = 0;
+      for (let yc = 0; yc < GRID_SIZE; yc++){
+        new_grid[yc] = [];
+        for (let xc = 0; xc < GRID_SIZE; xc++){
+          liveNeighbours = live_neighbors(grid, xc, yc);
 
-            new_grid[yc][xc] = grid[yc][xc]
-            if ((liveNeighbours < GAME_MIN_NEIGHBORS) || (liveNeighbours > GAME_MAX_NEIGHBORS)) {
-              // kill our little friend
-              new_grid[yc][xc] = 0;
-            }
+          new_grid[yc][xc] = grid[yc][xc]
+          if ((liveNeighbours < GAME_MIN_NEIGHBORS) || (liveNeighbours > GAME_MAX_NEIGHBORS)) {
+            // kill our little friend
+            new_grid[yc][xc] = 0;
+          }
 
-            if (liveNeighbours === GAME_SPAWN_NEIGHBORS){
-              // welcome back to life, little pixel!
-              new_grid[yc][xc] = 1;
-            }
+          if (liveNeighbours === GAME_SPAWN_NEIGHBORS){
+            // welcome back to life, little pixel!
+            new_grid[yc][xc] = 1;
           }
         }
-        return new_grid;
       }
+      return new_grid;
+    }
   }
-})
+}
+
+router.get('/image/:id', handler);
+router.get('/image/:id/:force', handler);
 
 module.exports = router;
